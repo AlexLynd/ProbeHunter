@@ -15,6 +15,7 @@ int ltBtnState = 0; int pLtState = HIGH;
 int mdBtnState = 0; int pMdState = HIGH;
 int rtBtnState = 0; int pRtState = HIGH;
 
+unsigned long prevTime2;
 unsigned long prevTime;
 unsigned long currTime;
 
@@ -369,10 +370,35 @@ void loop() {
     else if (list) { updateList(); }
     else if (settings) { updateStgs(); }
     else if (toggle)   { 
+      currTime = millis();
       if (packet[2]==srcMac) {
+        prevTime2 = currTime;
         updateToggle(srcMac); 
       }
+      if (currTime-prevTime2 >= 3000) {
+        display.clearDisplay();
+        display.setCursor(20,17);
+        display.println("Device Timeout");
+        display.setCursor(15,25);
+        display.println("1 min. inactive");
+        display.drawTriangle(10, 59, 15, 55, 15, 63, WHITE);
+        display.fillTriangle(10, 59, 15, 55, 15, 63, WHITE);
       
+        display.drawTriangle(118, 59, 113, 55, 113, 63, WHITE);
+        display.fillTriangle(118, 59, 113, 55, 113, 63, WHITE);
+        
+        display.drawLine(0,53,128,53,WHITE);
+        display.setCursor(0,55);
+        display.drawLine(30,53,30,64,WHITE);
+        display.drawLine(98,53,98,64,WHITE);
+      
+        display.setCursor(48,55);
+        display.println("toggle");  
+        display.display();
+        delay(2000);
+        toggle = false; scan= true;
+        prevTime2 = currTime;
+      }
     }
   }  
 }
