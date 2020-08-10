@@ -11,26 +11,20 @@ Adafruit_SSD1306 display(-1);
 #define mdBtn D6 
 #define rtBtn D5 
 
-int ltBtnState = 0; int pLtState = HIGH;
-int mdBtnState = 0; int pMdState = HIGH;
-int rtBtnState = 0; int pRtState = HIGH;
+int lState = 0; int plState = 1;
+int mState = 0; int pmState = 1;
+int rState = 0; int prState = 1;
 
-unsigned long prevTime2;
-unsigned long prevTime;
-unsigned long currTime;
+unsigned long prevTime, prevTime2, currTime;
 
 uint8_t dev; uint8_t sel; uint8_t pos;
 uint8_t tIndex = 0; // scroll index
 
 String packet[7];
 String devices[100][3]; int devCnt = 0;
-String srcMac = "";
-String ssid = "";
-String sourceAddy;
-String dest;
-char srcOctet[2];
-char destOctet[2];
-int addr, fst, ft;
+String srcMac, ssid, sourceAddy, dest;
+char srcOctet[2], destOctet[2];
+uint8_t addr, fst, ft;
 String pktType;
 
 boolean probesOnly = false;
@@ -54,7 +48,6 @@ void cb(esppl_frame_info *info) {
     for (int i= 0; i< 6; i++) { 
       sprintf(destOctet, "%02x", info->receiveraddr[i]); dest+=destOctet;
     }
-//    Serial.println(sourceAddy);
 
     if (info->ssid_length > 0) {
      for (int i= 0; i< info->ssid_length; i++) { ssid+= (char) info->ssid[i]; }
@@ -84,12 +77,12 @@ void cb(esppl_frame_info *info) {
       prevTime = currTime;
       memset(devices, 0, sizeof(devices)); devCnt = 0;
       sel = 0; dev = 0;
+      tIndex = 0;
     }     
-
+    ft = packet[0].toInt(); fst = packet[1].toInt(); 
 }
 
 void printPacket() {
-  ft = packet[0].toInt(); fst = packet[1].toInt(); 
   if      (ft == 0 and (fst == 0 or fst == 1)) pktType = "Association";
   else if (ft == 0 and (fst == 2 or fst == 3)) pktType = "Re-Assoc";
   else if (ft == 0 and (fst == 4 or fst == 5)) pktType = "Probe";
@@ -125,23 +118,20 @@ void updateScan() {
 
 void updateList() {
   dev = 0; sel = 0;
-  mdBtnState = digitalRead(mdBtn);
-  esppl_sniffing_start();
+  mState = digitalRead(mdBtn);
+  esppl_sniffing_start(); 
 
-  while(mdBtnState) {
+  while(mState) {
     for (int i = 1; i < 15; i++ ) {
       esppl_set_channel(i);
-      while (esppl_process_frames()) {
-        //
-      }
+      while (esppl_process_frames()) {}
     }
     
-    ltBtnState = digitalRead(ltBtn);
-    mdBtnState = digitalRead(mdBtn);
-    rtBtnState = digitalRead(rtBtn);
-    
+    lState = digitalRead(ltBtn);
+    mState = digitalRead(mdBtn);
+    rState = digitalRead(rtBtn);
+   
     display.clearDisplay();
-
     pos = 4; // position to print devices 
     for (int i=dev; i<dev+5; i++) {
       display.setCursor(12,pos);
@@ -150,94 +140,58 @@ void updateList() {
         pos+=8;
       }
     }
-    
-    display.drawTriangle(10, 59, 15, 55, 15, 63, WHITE);
-    display.fillTriangle(10, 59, 15, 55, 15, 63, WHITE);
-
-    display.drawTriangle(118, 59, 113, 55, 113, 63, WHITE);
-    display.fillTriangle(118, 59, 113, 55, 113, 63, WHITE);
-    
-    display.drawLine(0,53,128,53,WHITE);
-    display.setCursor(0,55);
-    display.drawLine(30,53,30,64,WHITE);
-    display.drawLine(98,53,98,64,WHITE);
-
-    display.setCursor(48,55);
-    display.println("select");
+       
+    drawMenu("select");
 
     display.drawTriangle(5, (sel*8)+7, 0, (sel*8)+4, 0, (sel*8)+10, WHITE);
     display.display();
     if ((int) devices[dev+sel+1][0].length() > 0) {
-      if (!rtBtnState and dev<94) {
+      if (!rState and dev<94) {
         if (sel<4) sel++;
         else { sel = 0; dev+=5;}
       }
-      else if (!rtBtnState and dev>94) {
-        if (sel<4) sel++;
-      }
+      else if (!rState and dev>94) { if (sel<4) sel++; }
     }
-    if (!ltBtnState and dev>4) {
+    if (!lState and dev>4) {
       if (sel>0) sel--;
       else { sel = 4; dev-=5; }
     }
-    else if (!ltBtnState and dev<4) {
-      if (sel>0) sel--;
-    }
+    else if (!lState and dev<4) { if (sel>0) sel--; }
     currTime = millis();
 
     for (int i=0; i<100; i++){
-      if (currTime-devices[i][2].toInt() >= 30000) devices[i][1] = "-??";
-
+      if (currTime-devices[i][2].toInt() >= 20000) devices[i][1] = "-??";
     }
   }
-  pMdState = mdBtnState;
+  pmState = mState;
   list = false; toggle = true; // toggle modes
   srcMac = devices[dev+sel][0];
   
-  display.clearDisplay(); // buffer
-  display.setCursor(0,25);
-  display.println("Waiting on packets...");
-    display.drawTriangle(10, 59, 15, 55, 15, 63, WHITE);
-  display.fillTriangle(10, 59, 15, 55, 15, 63, WHITE);
-
-  display.drawTriangle(118, 59, 113, 55, 113, 63, WHITE);
-  display.fillTriangle(118, 59, 113, 55, 113, 63, WHITE);
-  
-  display.drawLine(0,53,128,53,WHITE);
-  display.setCursor(0,55);
-  display.drawLine(30,53,30,64,WHITE);
-  display.drawLine(98,53,98,64,WHITE);
-
-  display.setCursor(48,55);
-  display.println("toggle"); 
+  display.clearDisplay();
+  drawPktFrom(srcMac);
+  drawMenu("toggle");
   display.display();
-  
+  prevTime2 = currTime;
 }
 
-/* TOGGLE */
-void updateToggle(String currMac) {
-  printPacket();
-
+/* TOGGLE MENU */
+void drawMenu(String text) {
   display.drawTriangle(10, 59, 15, 55, 15, 63, WHITE);
   display.fillTriangle(10, 59, 15, 55, 15, 63, WHITE);
-
   display.drawTriangle(118, 59, 113, 55, 113, 63, WHITE);
   display.fillTriangle(118, 59, 113, 55, 113, 63, WHITE);
-  
+
   display.drawLine(0,53,128,53,WHITE);
-  display.setCursor(0,55);
   display.drawLine(30,53,30,64,WHITE);
   display.drawLine(98,53,98,64,WHITE);
-
   display.setCursor(48,55);
-  display.println("toggle");  
-  display.display();
+  display.println(text);  
 }
 
 /* SETTINGS */
 void updateStgs() {
-  rtBtnState = digitalRead(rtBtn);
-  Serial.println("here");
+  rState = digitalRead(rtBtn);
+
   display.clearDisplay();
   display.setCursor(25,20);
   display.println("Only Probe Reqs.");
@@ -250,37 +204,32 @@ void updateStgs() {
   display.display();
 
   // toggle box until right pressed
-  while (pRtState == rtBtnState) {rtBtnState = digitalRead(rtBtn);}
-  pRtState = rtBtnState;
+  while (prState == rState) {rState = digitalRead(rtBtn);}
+  prState = rState;
   
-  while (rtBtnState) {
-    mdBtnState = digitalRead(mdBtn);
-    rtBtnState = digitalRead(rtBtn);
-    if (!mdBtnState and probesOnly and mdBtnState!=pMdState)       { probesOnly = false; }
-    else if (!mdBtnState and !probesOnly and mdBtnState!=pMdState) { probesOnly = true; }
-    pMdState = mdBtnState;
+  while (rState) {
+    mState = digitalRead(mdBtn);
+    rState = digitalRead(rtBtn);
+    if (!mState and probesOnly and mState!=pmState)       { probesOnly = false; }
+    else if (!mState and !probesOnly and mState!=pmState) { probesOnly = true; }
+    pmState = mState;
     if (probesOnly) display.fillRect(10,20,7,7,WHITE);
     else display.fillRect(11,21,5,5,BLACK);
     display.display();
-    if (!rtBtnState) {
-      Serial.println("pressed!");
-    }
   }
-   display.clearDisplay();
+  display.clearDisplay();
   display.drawLine(0,53,128,53,WHITE);
   display.drawLine(26,53,26,64,WHITE);
   display.drawLine(68,53,68,64,WHITE);
   display.setCursor(0,55);
-display.print("List Toggle Settings");
-display.setCursor(0,25);
+  display.print("List Toggle Settings");
+  display.setCursor(0,25);
   if (probesOnly) {
-    
     display.println("Waiting for probes...");
-   
   }
   else display.println("Waiting on packets...");
    display.display();
-  pRtState = rtBtnState;
+  prState = rState;
   settings = false; scan = true; // toggle to scan
   
 }
@@ -292,12 +241,18 @@ int isFound(String bssid, String arr[][3]) {
   return -1;
 }
 
+void drawPktFrom(String address) {
+  display.setCursor(5,17);
+  display.println("Waiting on packets");
+  display.setCursor(8,25);
+  display.println("from " + address);
+}
+
 void setup() {
+  delay(500);
   pinMode(ltBtn, INPUT);
   pinMode(mdBtn, INPUT);
   pinMode(rtBtn, INPUT);
-  
-  delay(500);
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // OLED address
   display.clearDisplay();
   display.setTextSize(1);
@@ -310,7 +265,6 @@ void setup() {
 
 void loop() {
   esppl_sniffing_start();
-         
   while (true) {
     for (int i = 1; i < 15; i++ ) {
       esppl_set_channel(i);
@@ -319,83 +273,67 @@ void loop() {
       }
     }
 
-    ltBtnState = digitalRead(ltBtn);
-    mdBtnState = digitalRead(mdBtn);
-    rtBtnState = digitalRead(rtBtn);
-    if (!ltBtnState and scan) {
+    lState = digitalRead(ltBtn);
+    mState = digitalRead(mdBtn);
+    rState = digitalRead(rtBtn);
+    if (!lState and scan) {
       scan = false; list = true;
     }
-    else if (!rtBtnState and scan and (pRtState!=rtBtnState)) {
+    else if (!rState and scan and (prState!=rState)) {
       scan = false; settings = true;
     }
-    else if (!mdBtnState and scan and (pMdState!=mdBtnState)) {
+    else if (!mState and scan and (pmState!=mState)) { // middle pressed on scan
       scan = false; toggle = true;
       display.clearDisplay();
-      display.drawTriangle(10, 59, 15, 55, 15, 63, WHITE);
-      display.fillTriangle(10, 59, 15, 55, 15, 63, WHITE);
-    
-      display.drawTriangle(118, 59, 113, 55, 113, 63, WHITE);
-      display.fillTriangle(118, 59, 113, 55, 113, 63, WHITE);
-      
-      display.drawLine(0,53,128,53,WHITE);
-      display.setCursor(0,55);
-      display.drawLine(30,53,30,64,WHITE);
-      display.drawLine(98,53,98,64,WHITE);
-    
-      display.setCursor(48,55);
-      display.println("toggle");  
-      display.setCursor(0,17);
-      display.println("Waiting on packets");
-      display.setCursor(0,25);
-      display.println("from " + packet[2]);
+      drawMenu("toggle"); 
+      drawPktFrom(srcMac);
       display.display();
     }
-    else if (!mdBtnState and toggle and (pMdState!=mdBtnState)) {
+    else if (!mState and toggle and (pmState!=mState)) {
       toggle = false; scan = true;
     }
-    pLtState = ltBtnState;
-    pMdState = mdBtnState;
-    pRtState = rtBtnState;
-    if (scan)     { 
-      if (probesOnly and (packet[0].toInt() ==0 and (packet[1].toInt() == 4 or packet[1].toInt() == 5))) { 
-          updateScan(); 
-      }
-      else if (!probesOnly) {
-        updateScan();
-      }
-      else {
-        Serial.println("not printing");
-      }
+    else if (!rState and toggle and (prState!=rState) and tIndex < devCnt) {
+      tIndex++;
+      srcMac = devices[tIndex][0]; 
+      prevTime2 = millis();
+      display.clearDisplay();
+      drawPktFrom(srcMac);
+      drawMenu("toggle");
+      display.display();
     }
+    else if (!lState and toggle and (plState!=lState) and tIndex > 0) {
+      tIndex--;
+      srcMac = devices[tIndex][0]; 
+      prevTime2 = millis();     
+      display.clearDisplay(); 
+      drawPktFrom(srcMac);
+      display.display();
+    }
+    plState = lState;
+    pmState = mState;
+    prState = rState;
+
+    if (((probesOnly and (ft==0 and (fst == 4 or fst == 5))) or !probesOnly) and scan) { updateScan(); }
     else if (list) { updateList(); }
     else if (settings) { updateStgs(); }
     else if (toggle)   { 
       currTime = millis();
       if (packet[2]==srcMac) {
         prevTime2 = currTime;
-        updateToggle(srcMac); 
+        printPacket();
+        drawMenu("toggle"); 
+        display.display();
       }
-      if (currTime-prevTime2 >= 3000) {
+
+       if (currTime-prevTime2 >= 20000) {
         display.clearDisplay();
         display.setCursor(20,17);
         display.println("Device Timeout");
-        display.setCursor(15,25);
-        display.println("1 min. inactive");
-        display.drawTriangle(10, 59, 15, 55, 15, 63, WHITE);
-        display.fillTriangle(10, 59, 15, 55, 15, 63, WHITE);
-      
-        display.drawTriangle(118, 59, 113, 55, 113, 63, WHITE);
-        display.fillTriangle(118, 59, 113, 55, 113, 63, WHITE);
-        
-        display.drawLine(0,53,128,53,WHITE);
-        display.setCursor(0,55);
-        display.drawLine(30,53,30,64,WHITE);
-        display.drawLine(98,53,98,64,WHITE);
-      
-        display.setCursor(48,55);
-        display.println("toggle");  
+        display.setCursor(13,25);
+        display.println("20 sec. inactive");
+        drawMenu("toggle");  
         display.display();
-        delay(2000);
+        delay(500);
         toggle = false; scan= true;
         prevTime2 = currTime;
       }
