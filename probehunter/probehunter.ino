@@ -62,7 +62,6 @@ void cb(esppl_frame_info *info) {
 
     currTime = millis();
     addr = isFound(sourceAddy,devices);
-    Serial.println(addr);
     if (addr==-1 and devCnt!=100) {
       devices[devCnt][0] = sourceAddy;
       devices[devCnt][1] = info->rssi;
@@ -120,11 +119,7 @@ void updateScan() {
 void updateList() {
   dev = 0; sel = 0;
   mState = digitalRead(mdBtn);
-  esppl_sniffing_start(); 
-  for (int i =0; i<devCnt; i++){
-    Serial.println(devices[i][0]);
-  }
-  Serial.println(devCnt);
+  esppl_sniffing_start();
   while(mState) {
     for (int i = 1; i < 15; i++ ) {
       esppl_set_channel(i);
@@ -140,7 +135,6 @@ void updateList() {
       display.setCursor(12,pos);
       if ((int) devices[i][0].length() > 0) {
         display.println((String) devices[i][0]+" ("+ (String) devices[i][1]+")");
-        Serial.println((String) devices[i][0]+" ("+ (String) devices[i][1]+")"); // delete
         pos+=8;
       }
     }
