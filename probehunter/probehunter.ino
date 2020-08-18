@@ -52,8 +52,8 @@ void cb(esppl_frame_info *info) {
     if (info->ssid_length > 0) {
      for (int i= 0; i< info->ssid_length; i++) { ssid+= (char) info->ssid[i]; }
     }
-    packet[0] = (String) info->frametype;
-    packet[1] = (String) info->framesubtype;
+    packet[0] = String(info->frametype);
+    packet[1] = String(info->framesubtype);
     packet[2] = sourceAddy;
     packet[3] = dest;
     packet[4] = info->rssi;
