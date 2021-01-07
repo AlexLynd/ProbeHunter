@@ -7,9 +7,9 @@ Adafruit_SSD1306 display(-1);
 #error("Incorrect screen height, fix Adafruit_SSD1306.h"); // 128x64 OLED
 #endif
 
-#define ltBtn D7
-#define mdBtn D6 
-#define rtBtn D5 
+#define ltBtn D0
+#define mdBtn D4
+#define rtBtn D3
 
 int lState = 0; int plState = 1;
 int mState = 0; int pmState = 1;
@@ -52,8 +52,8 @@ void cb(esppl_frame_info *info) {
     if (info->ssid_length > 0) {
      for (int i= 0; i< info->ssid_length; i++) { ssid+= (char) info->ssid[i]; }
     }
-    packet[0] = String(info->frametype);
-    packet[1] = String(info->framesubtype);
+    packet[0] = info->frametype;
+    packet[1] = info->framesubtype;
     packet[2] = sourceAddy;
     packet[3] = dest;
     packet[4] = info->rssi;
@@ -143,7 +143,7 @@ void updateList() {
 
     display.drawTriangle(5, (sel*8)+7, 0, (sel*8)+4, 0, (sel*8)+10, WHITE);
     display.display();
-    if ((int) devices[dev+sel+1][0].length() > 0) {
+    if (devices[dev+sel+1][0].length() > 0) {
       if (!rState and dev<94) {
         if (sel<4) sel++;
         else { sel = 0; dev+=5;}
@@ -248,6 +248,8 @@ void drawPktFrom(String address) {
 
 void setup() {
   delay(500);
+  pinMode(1, FUNCTION_3); 
+  pinMode(3, FUNCTION_3); 
   pinMode(ltBtn, INPUT);
   pinMode(mdBtn, INPUT);
   pinMode(rtBtn, INPUT);
@@ -257,7 +259,7 @@ void setup() {
   display.setTextColor(WHITE);
   display.setCursor(0, 0);
   display.display();
-  Serial.begin(115200);
+//  Serial.begin(115200);
   esppl_init(cb);
 }
 
