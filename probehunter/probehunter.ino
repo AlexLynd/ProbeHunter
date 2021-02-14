@@ -8,8 +8,8 @@ Adafruit_SSD1306 display(-1);
 #endif
 
 #define ltBtn D0
-#define mdBtn D4
-#define rtBtn D3
+#define mdBtn RX
+#define rtBtn TX
 
 int lState = 0; int plState = 1;
 int mState = 0; int pmState = 1;
